@@ -1,4 +1,4 @@
-﻿namespace CalculationTechTest.Services.Parser
+﻿namespace CalculationTechTest.Services.Parser.Interface
 {
     /// <summary>
     /// Chain of responsibility: 

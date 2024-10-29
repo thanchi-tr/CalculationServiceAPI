@@ -1,53 +1,17 @@
 ﻿using CalculationTechTest.Model.DTO;
+using CalculationTechTest.Services.MathService.Interface;
 using CalculationTechTest.Services.Parser;
-using Microsoft.AspNetCore.Routing.Tree;
-using static CalculationTechTest.Services.Parser.IParser;
+using CalculationTechTest.Utils;
 
 namespace CalculationTechTest.Services.MathService
 {
     public class CalculatorService : ICalculateServcie
     {
 
-       
-
         public CalculatorService()
         {
-
-            
         }
-
-
-
-
-        /// <summary>
-        /// Checking if the 2 delegate are equilvalent
-        /// </summary>
-        /// <param name="d1_"></param>
-        /// <param name="d2_"></param>
-        /// <returns></returns>
-        public static bool AreEquivalent(object d1_, object d2_)
-        {
-            if (d1_ == null || d2_ == null)
-                return false;
-            if (d1_.GetType() != d2_.GetType()) return false;
-
-
-            if (d1_.GetType() == typeof(Func<double, double>))
-            {
-                Func<double, double> d1, d2;
-                d1 = (Func<double, double>)d1_;
-                d2 = (Func<double, double>)d2_;
-                return d1.Method == d2.Method && Equals(d1.Target, d2.Target);
-            }
-            else
-            {
-                Func<double, double, double> d1, d2;
-                d1 = (Func<double, double, double>)d1_;
-                d2 = (Func<double, double, double>)d2_;
-                return d1.Method == d2.Method && Equals(d1.Target, d2.Target);
-            }
-
-        }
+        
 
         /// <summary>
         /// 
@@ -58,13 +22,12 @@ namespace CalculationTechTest.Services.MathService
         public BusinessToPresentationDTO<double> Calculate(ParserHandler parser, string serializedString)
         {
             var expressionQueue = parser.ExtractExpressionQueueFromSerialized(serializedString);
-            if (expressionQueue == null)
+            if (expressionQueue == null) // cant parse the string
             {
                 return new BusinessToPresentationDTO<double>
                 {
                     status = false,
                     message = "Not support format",
-
                 };
             }
 
@@ -89,7 +52,6 @@ namespace CalculationTechTest.Services.MathService
                 {
                     status = false,
                     message = ex.Message,
-
                 };
             }
         }
@@ -99,6 +61,7 @@ namespace CalculationTechTest.Services.MathService
         ///     - next to the last leaf of tree  is a closing tag [isStart: false, Operator: delegate MathOp]
         ///     - the tree has different layer.
         ///     - the leaf must be the a double numerical value.
+        ///     - where each tree is representing a double value (after it is eval)
         ///
         /// Realistic representation:: in expression queue:
         /// 
@@ -118,7 +81,7 @@ namespace CalculationTechTest.Services.MathService
         ///     - definition: OperatorWrapper {IsStart: bool, bivariateMathOperator: Func<double, double, double>}
         ///     
         /// </summary>
-        /// <param name="equationResidule"> the queue at this current level</param>
+        /// <param name="equationResidule"> The remainning in the queue that is tobe processed</param>
         /// <param name="@mathOperator"> math operation that that in 2 input</param>
         /// <param name="value">Current value::  </param>
         /// <returns></returns>
@@ -126,25 +89,26 @@ namespace CalculationTechTest.Services.MathService
         {
             if (equationResidule.Count == 0) return 0;
 
-            Object nextSymbol = equationResidule.Dequeue(); // Remove the opening tag
-            if (nextSymbol.GetType() == typeof(double))
+            Object nextSymbol = equationResidule.Dequeue(); 
+            if (nextSymbol.IsDoubleNumber())
             {
-                return (double)nextSymbol;
+                return nextSymbol.toDouble();
             }
-            object usingOperator = ((OperationWrapper)nextSymbol).Operator;
+            object usingOperator = ((OperationWrapper)nextSymbol).Operator;// Found a new expression tree
             double treeValue = (usingOperator.GetType() == typeof(Func<double, double>))
                 ? eval(equationResidule, (Func<double, double>)usingOperator)
                 : eval(equationResidule, (Func<double, double, double>)usingOperator);
 
-            // Repeat the same operation until find the CLOSING tag for this operator
+            //Apply the resursively apply operator to the remain of tree (until closing tag appear)
             object followUpSymbol = null;
             equationResidule.TryPeek(out followUpSymbol);
 
-            while (followUpSymbol.GetType() == typeof(double) ||  // a value||
+            var nextOperator = ((OperationWrapper)followUpSymbol).Operator;
+            while (followUpSymbol.IsDoubleNumber() ||
                 (
                     (
                         ((OperationWrapper)followUpSymbol).IsStart || //Found a start Tag
-                        !(AreEquivalent(((OperationWrapper)followUpSymbol).Operator, usingOperator))
+                        !(nextOperator.IsFuncEquilvalent(usingOperator)) // found a sub tree
                     )
                 )
                 )
@@ -152,11 +116,10 @@ namespace CalculationTechTest.Services.MathService
 
                 treeValue = ((Func<double, double, double>)usingOperator)(treeValue, eval(equationResidule));
                 equationResidule.TryPeek(out followUpSymbol);
-                var state = AreEquivalent(((OperationWrapper)followUpSymbol).Operator, usingOperator);
+                nextOperator = ((OperationWrapper)followUpSymbol).Operator;
             }
 
-            nextSymbol = equationResidule.Dequeue(); // Remove the closing tag
-
+            equationResidule.Dequeue(); // Remove the closing tag
             return treeValue;
         }
 
@@ -174,10 +137,12 @@ namespace CalculationTechTest.Services.MathService
         /// 
         ///                  MathOperation: (absolute)
         ///                           |
+        ///                           |
         ///                (last leaf(absolute))MathOperation(+)
         ///                 /                   \
         ///  [MathOperation: (negate)]          [(last leaf(+)) (double) 3]
-        ///              |                  
+        ///              |          
+        ///              |
         ///  [(last leaf(negate)) double -3]          
         ///                 
         /// 
@@ -196,7 +161,7 @@ namespace CalculationTechTest.Services.MathService
             Object nextSymbol;
             equationResidule.TryPeek(out nextSymbol);
             // Found a leaf
-            if (typeof(double) == nextSymbol.GetType())
+            if (nextSymbol.IsDoubleNumber())
                 return @singleVariableMathOperator((double)equationResidule.Dequeue());
 
             var nextOperator = ((OperationWrapper)nextSymbol).Operator;
@@ -238,21 +203,20 @@ namespace CalculationTechTest.Services.MathService
         public static double eval(Queue<object> equationResidule, Func<double, double, double> @biVariatedMathOperator)
         {
             if (equationResidule.Count == 0) return 0;
-            Object nextSymbol = null;
+            
             double[] inputs = [(double)0, (double)0];
             for (int i = 0; i < inputs.Length; i++)
             {
+                object nextSymbol = null;
                 equationResidule.TryPeek(out nextSymbol);
                 // if the first input is a leaf
-                if ((typeof(double) == nextSymbol.GetType()))
+                if ((nextSymbol.IsDoubleNumber()))
                 {
-
-                    inputs[i] = (double)equationResidule.Dequeue();
+                    inputs[i] = equationResidule.Dequeue()
+                                                .toDouble();
                     continue;
                 }
-
-                var nextOperator = ((OperationWrapper)nextSymbol).Operator;
-                if (!(typeof(double) == nextOperator.GetType()))//
+                else// evaluate the subtree
                 {
                     inputs[i] = eval(equationResidule);
                 }

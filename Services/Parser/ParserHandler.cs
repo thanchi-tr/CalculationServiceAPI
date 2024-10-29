@@ -1,4 +1,6 @@
-﻿namespace CalculationTechTest.Services.Parser
+﻿using CalculationTechTest.Services.Parser.Interface;
+
+namespace CalculationTechTest.Services.Parser
 {
     public abstract class ParserHandler : IParserHandler
     {

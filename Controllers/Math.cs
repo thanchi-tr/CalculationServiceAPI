@@ -1,4 +1,4 @@
-﻿using CalculationTechTest.Services.MathService;
+﻿using CalculationTechTest.Services.MathService.Interface;
 using CalculationTechTest.Services.Parser;
 using Microsoft.AspNetCore.Mvc;
 using System.Reflection.Metadata;
