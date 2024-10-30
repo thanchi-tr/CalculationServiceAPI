@@ -2,6 +2,12 @@
 
 namespace CalculationTechTest.Services.Parser
 {
+
+    /// <summary>
+    /// Chain of Resonsibility:
+    ///     Each concrete parser will be a node in the system.
+    ///     Sequentially attempt to parse the serialized string
+    /// </summary>
     public abstract class ParserHandler : IParserHandler
     {
         protected IParserHandler? _next = null;
