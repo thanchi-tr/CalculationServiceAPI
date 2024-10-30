@@ -1,55 +1,51 @@
 ﻿using CalculationTechTest.Services.MathService;
-using CalculationTechTest.Services.Parser;
+using CalculationTechTest.Services.MathService.Interface;
 using CalculationTechTest.Services.Parser.Json.DTO;
 using System.Text.Json;
-using System.Xml;
 
 namespace CalculationTechTest.Services.Parser.Json
 {
     public class JsonParser : ParserHandler
     {
-        private object ParseTag(string id)
-        {
-            switch (id)
-            {
+        private readonly IMathOperation _mathOperatorCenter;
 
-                case "Plus":
-                    return MathOperator.add;
-                case "Multiplication":
-                    return MathOperator.multiply;
-                case "Minus":
-                    return MathOperator.minus;
-                case "Mod":
-                    return MathOperator.mod;
-                case "Divide":
-                    return MathOperator.divide;
-                case "Power":
-                    return MathOperator.power;
-                default:
-                    return null;
-            }
+        public JsonParser(IMathOperation mathOperatorCenter)
+        {
+            _mathOperatorCenter = mathOperatorCenter;
         }
+
+        
 
         public Queue<object> ExtractExpressionQueue(MathDTO maths, Queue<object> expressionQueue)
         {
 
             foreach (var expression in maths.Maths)
             {
-                object MathOps = ParseTag(expression.ID);
-                expressionQueue.Enqueue(new OperationWrapper
+                try
                 {
-                    IsStart = true,
-                    Operator = MathOps
-                });
-                foreach (var val in expression.Value)
-                {
-                    expressionQueue.Enqueue(double.Parse(val));
+                    object MathOps = _mathOperatorCenter.ExtractOperation(expression.ID);
+                    expressionQueue.Enqueue(new OperationWrapper
+                    {
+                        IsStart = true,
+                        Operator = MathOps
+                    });
+                    foreach (var val in expression.Value)
+                    {
+                        expressionQueue.Enqueue(double.Parse(val));
+                    }
+                    expressionQueue.Enqueue(new OperationWrapper
+                    {
+                        IsStart = false,
+                        Operator = MathOps
+                    });
                 }
-                expressionQueue.Enqueue(new OperationWrapper
+                /// Will be throw if the for some reason we cant find the mapped math operator for the id
+                catch (InvalidOperationException ex)
                 {
-                    IsStart = false,
-                    Operator = MathOps
-                });
+                    Console.WriteLine(ex.Message);
+                    return null;
+                }
+
             }
             return expressionQueue;
         }

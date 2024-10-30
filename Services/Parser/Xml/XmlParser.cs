@@ -1,49 +1,22 @@
 ﻿using CalculationTechTest.Services.MathService;
+using CalculationTechTest.Services.MathService.Interface;
 using CalculationTechTest.Services.Parser;
+using CalculationTechTest.Utils;
 using System.Xml;
 
 namespace CalculationTechTest.Services.Parser.Xml
 {
     public sealed class XmlParser : ParserHandler
     {
-        public XmlParser() { }
+        private readonly IMathOperation _mathOperatorCenter;
 
-
-
-        private Func<double, double, double> ParseTag(XmlNode node)
+        public XmlParser(IMathOperation mathOperatorCenter)
         {
-            switch (node?.Attributes?["ID"]?.Value)
-            {
-
-                case "Plus":
-                    return MathOperator.add;
-                case "Multiplication":
-                    return MathOperator.multiply;
-                case "Minus":
-                    return MathOperator.minus;
-                case "Mod":
-                    return MathOperator.mod;
-                case "Divide":
-                    return MathOperator.divide;
-                case "Power":
-                    return MathOperator.power;
-                default:
-                    return null;
-            }
+            _mathOperatorCenter = mathOperatorCenter;
         }
-        private Func<double, double> ParseTagSingleVariable(XmlNode node)
-        {
-            switch (node?.Attributes?["ID"]?.Value)
-            {
 
-                case "SquareRoot":
-                    return Math.Sqrt;
-                case "Absolute":
-                    return Math.Abs;
-                default:
-                    return null;
-            }
-        }
+        
+        
 
         /// <summary>
         /// 
@@ -60,32 +33,46 @@ namespace CalculationTechTest.Services.Parser.Xml
                 queue.Enqueue(double.Parse(node.InnerText));
                 return queue;
             }
+            object mathMathOperator = null;
+            if (node.IsExist() && node.Attributes["ID"].IsExist())
+            {
+                try
+                {
+                    mathMathOperator = _mathOperatorCenter.ExtractOperation(node?.Attributes?["ID"]?.Value);
 
-            object mathMathOperator = (object)ParseTag(node) ?? ParseTagSingleVariable(node);
-            if (mathMathOperator != null)
-            {
-                queue.Enqueue(
-                    new OperationWrapper
-                    {
-                        IsStart = true,
-                        Operator = mathMathOperator
-                    }
-                );
+                    queue.Enqueue(
+                            new OperationWrapper
+                            {
+                                IsStart = true,
+                                Operator = mathMathOperator
+                            }
+                    );
+                    
+                    
+                    queue.Enqueue(
+                            new OperationWrapper
+                            {
+                                IsStart = false,
+                                Operator = mathMathOperator
+                            }
+                    );
+
+
+                }
+                catch(InvalidOperationException ex)
+                {
+                    Console.WriteLine(ex.Message);
+                    return null;
+                }
             }
-            foreach (XmlNode child in node.ChildNodes)
+            else
             {
-                ExtractExpressionQueue(child, queue);// Recursively add values or operations
+                foreach (XmlNode child in node.ChildNodes)
+                {
+                    ExtractExpressionQueue(child, queue);// Recursively add values or operations
+                }
             }
-            if (mathMathOperator != null)
-            {
-                queue.Enqueue(
-                    new OperationWrapper
-                    {
-                        IsStart = false,
-                        Operator = mathMathOperator
-                    }
-                );
-            }
+            
             return queue;
         }
 

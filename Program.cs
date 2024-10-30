@@ -19,6 +19,8 @@ namespace CalculationTechTest
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
 
+            // Add the math service: that keep track all of the register service
+            builder.Services.AddSingleton<IMathOperation, MathServiceCenter>();
             builder.Services.AddTransient<XmlParser>();
             builder.Services.AddTransient<JsonParser>();
             builder.Services.AddTransient<ParserHandler, XmlParser>();
@@ -27,6 +29,8 @@ namespace CalculationTechTest
             builder.Services.AddScoped<ICalculateServcie,CalculatorService>();
 
             var app = builder.Build();
+
+            
 
 
             // Configure the HTTP request pipeline.

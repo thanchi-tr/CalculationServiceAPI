@@ -2,6 +2,12 @@
 {
     public static class Helper
     {
+        public static bool IsExist(this object self)
+        {
+            return self != null;
+        }
+
+
         public static double toDouble(this object? self)
         {
             try
@@ -10,19 +16,16 @@
             }
             catch (Exception ex)
             {
-
                 return double.NaN;
             }
         }
         public static bool IsDoubleNumber(this Object? queueNode)
         {
-
             return queueNode!= null && queueNode.GetType() == typeof(double);
         }
 
         public static bool IsFuncEquilvalent(this object delegateInstance, object target )
         {
-            
             if (delegateInstance == null || target == null)
                 return false;
             if (delegateInstance.GetType() != target.GetType()) return false;
